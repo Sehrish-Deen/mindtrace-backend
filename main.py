@@ -4,7 +4,6 @@ from pydantic import BaseModel
 from model import predict_burnout, train_model
 import numpy as np
 import base64
-import cv2
 import tempfile
 import os
 
