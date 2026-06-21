@@ -4,6 +4,5 @@ scikit-learn
 pandas
 numpy
 firebase-admin
-deepface
-tf-keras
+fer
 opencv-python-headless
