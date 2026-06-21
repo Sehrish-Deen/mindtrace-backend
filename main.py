@@ -48,11 +48,19 @@ async def detect_emotion(data: ImageRequest):
         from fer import FER
         import numpy as np
         import cv2
+        from PIL import Image, ImageOps
+        import io
 
         # Base64 decode karo
         image_data = base64.b64decode(data.image_base64)
-        nparr = np.frombuffer(image_data, np.uint8)
-        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+        # PIL se image kholo aur EXIF orientation fix karo
+        pil_image = Image.open(io.BytesIO(image_data))
+        pil_image = ImageOps.exif_transpose(pil_image)  # rotation fix
+        pil_image = pil_image.convert('RGB')
+
+        # PIL image ko OpenCV (BGR) format mein convert karo
+        img = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
 
         if img is None:
             return {
@@ -122,87 +130,6 @@ async def detect_emotion(data: ImageRequest):
         return {
             "success": False,
             "error": str(e),
-            "detected_mood": "😐 Neutral",
-            "mood_score": 5,
-            "suggestion": "Could not detect emotion. Please try again!"
-        }
-    try:
-        from deepface import DeepFace
-
-        # Base64 image decode karo
-        image_data = base64.b64decode(data.image_base64)
-        
-        # Temp file mein save karo
-        with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as tmp:
-            tmp.write(image_data)
-            tmp_path = tmp.name
-
-        try:
-            # DeepFace se emotion detect karo
-            result = DeepFace.analyze(
-                img_path=tmp_path,
-                actions=['emotion'],
-                enforce_detection=False,
-                detector_backend='opencv'
-            )
-
-            if isinstance(result, list):
-                result = result[0]
-
-            emotions = result['emotion']
-            dominant_emotion = result['dominant_emotion']
-
-            # Mood score calculate karo
-            emotion_scores = {
-                'happy': 9,
-                'surprise': 7,
-                'neutral': 5,
-                'sad': 3,
-                'fear': 2,
-                'angry': 2,
-                'disgust': 1
-            }
-
-            mood_score = emotion_scores.get(dominant_emotion.lower(), 5)
-
-            # Suggestions
-            suggestions = {
-                'happy': '😄 Great mood! Perfect time to tackle important tasks!',
-                'surprise': '😮 You seem surprised! Take a moment to process things.',
-                'neutral': '😐 Neutral mood. Take a short break and stretch!',
-                'sad': '😢 You seem sad. Try deep breathing or talk to a friend.',
-                'fear': '😨 You seem anxious. Try 4-7-8 breathing technique.',
-                'angry': '😠 You seem stressed! Step away for 10 minutes.',
-                'disgust': '🤢 Something bothering you? Take a break!'
-            }
-
-            emoji_map = {
-                'happy': '😄 Happy',
-                'surprise': '😮 Surprised',
-                'neutral': '😐 Neutral',
-                'sad': '😢 Sad',
-                'fear': '😨 Anxious',
-                'angry': '😠 Angry',
-                'disgust': '🤢 Disgusted'
-            }
-
-            return {
-                "success": True,
-                "dominant_emotion": dominant_emotion,
-                "detected_mood": emoji_map.get(dominant_emotion.lower(), '😐 Neutral'),
-                "mood_score": mood_score,
-                "emotion_probabilities": emotions,
-                "suggestion": suggestions.get(dominant_emotion.lower(), 'Take a short break!')
-            }
-
-        finally:
-            os.unlink(tmp_path)
-
-    except Exception as e:
-        return {
-            "success": False,
-            "error": str(e),
-            "dominant_emotion": "neutral",
             "detected_mood": "😐 Neutral",
             "mood_score": 5,
             "suggestion": "Could not detect emotion. Please try again!"
