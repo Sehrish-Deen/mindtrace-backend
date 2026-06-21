@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile
+ from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from model import predict_burnout, train_model
@@ -51,18 +51,23 @@ async def detect_emotion(data: ImageRequest):
         from PIL import Image, ImageOps
         import io
 
+        print("📸 Request received, decoding image...")
+
         # Base64 decode karo
         image_data = base64.b64decode(data.image_base64)
+        print(f"✅ Image decoded, size: {len(image_data)} bytes")
 
         # PIL se image kholo aur EXIF orientation fix karo
         pil_image = Image.open(io.BytesIO(image_data))
         pil_image = ImageOps.exif_transpose(pil_image)  # rotation fix
         pil_image = pil_image.convert('RGB')
+        print(f"✅ PIL image ready, dimensions: {pil_image.size}")
 
         # PIL image ko OpenCV (BGR) format mein convert karo
         img = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
 
         if img is None:
+            print("❌ img is None after conversion")
             return {
                 "success": False,
                 "detected_mood": "😐 Neutral",
@@ -70,11 +75,15 @@ async def detect_emotion(data: ImageRequest):
                 "suggestion": "Could not read image. Please try again!"
             }
 
+        print("🔍 Loading FER detector...")
         # FER se emotion detect karo
         detector = FER(mtcnn=False)
+        print("🔍 Running detection...")
         result = detector.detect_emotions(img)
+        print(f"✅ Detection result: {result}")
 
         if not result:
+            print("⚠️ No face detected in image")
             return {
                 "success": False,
                 "detected_mood": "😐 Neutral",
@@ -127,6 +136,7 @@ async def detect_emotion(data: ImageRequest):
         }
 
     except Exception as e:
+        print(f"❌ DETECT-EMOTION ERROR: {type(e).__name__} - {str(e)}")
         return {
             "success": False,
             "error": str(e),
