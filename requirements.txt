@@ -4,6 +4,3 @@ scikit-learn
 pandas
 numpy
 firebase-admin
-fer
-opencv-python-headless
-Pillow
